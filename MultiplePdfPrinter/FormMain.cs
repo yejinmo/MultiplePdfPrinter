@@ -276,7 +276,7 @@ namespace MultiplePdfPrinter
 
         private void FormMain_HelpButtonClicked(object sender, CancelEventArgs e)
         {
-            System.Diagnostics.Process.Start("http://google.com");
+            System.Diagnostics.Process.Start("https://github.com/yejinmo/MultiplePdfPrinter");
         }
     }
 }
