@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -24,26 +25,33 @@ namespace MultiplePdfPrinter
         private bool RequestStop { get; set; } = false;
         private List<string> PathList { get; set; } = new List<string>();
 
-        private string Language { get; set; } = "zh-cn";
+        private string CurrentLanguage { get; set; } = "Chinese";
 
-        private Dictionary<string, Dictionary<string, string>> LanguageMap =
-        new Dictionary<string, Dictionary<string, string>>
+        private void ApplyLanguage()
         {
-            { "zh-cn", new Dictionary<string, string>
-                {
-                    { "wait", "等待打印" },
-                    { "process", "正在打印" },
-                    { "done", "打印完成" },
-                    { "error", "打印错误" },
-                    { "start", "开始打印" },
-                    { "stop", "取消打印" },
-                }
+            if (!Language.WordMap.ContainsKey(CurrentLanguage))
+            {
+                var item = Language.WordMap.First();
+                CurrentLanguage = item.Key;
             }
-        };
+            Text = GetWord("title");
+            ButtonPrint.Text = GetWord("start");
+            StripMenuItemAction.Text = GetWord("menu-action") + " (&A)";
+            StripMenuItemOption.Text = GetWord("menu-option") + " (&O)";
+            ToolStripMenuItem_Clear.Text = GetWord("menu-clear") + " (&C)";
+            ToolStripMenuItem_Refresh.Text = GetWord("menu-refresh") + " (&R)";
+            ToolStripMenuItem_TopMost.Text = GetWord("menu-topmost") + " (&T)";
+            ToolStripMenuItem_Language.Text = GetWord("menu-language") + " (&L)";
+            ToolStripMenuItem_About.Text = GetWord("menu-about") + " (&A)";
+            columnHeader1.Text = GetWord("header-filename");
+            columnHeader2.Text = GetWord("header-filesize");
+            columnHeader3.Text = GetWord("header-time");
+            columnHeader4.Text = GetWord("header-status");
+        }
 
         private string GetWord(string key)
         {
-            if (LanguageMap.TryGetValue(Language, out var map) &&
+            if (Language.WordMap.TryGetValue(CurrentLanguage, out var map) &&
                 map.TryGetValue(key, out var word))
             {
                 return word;
@@ -147,11 +155,46 @@ namespace MultiplePdfPrinter
 
         private void FormMain_Load(object sender, EventArgs e)
         {
-            LoadPrinterList();
+            try
+            {
+                var lang = System.Globalization.CultureInfo.CurrentCulture.IetfLanguageTag;
+                lang = lang.Split('_')[0];
+                if (Language.DefineMap.TryGetValue(lang, out var key) &&
+                    Language.WordMap.ContainsKey(key))
+                {
+                    CurrentLanguage = key;
+                }
+                foreach (var item in Language.WordMap.Keys)
+                {
+                    var menu = new ToolStripMenuItem
+                    {
+                        Text = item
+                    };
+                    menu.Click += (_, __) =>
+                    {
+                        ChangeLanguage(item);
+                    };
+                    ToolStripMenuItem_Language.DropDownItems.Add(menu);
+                }
+                ChangeLanguage(CurrentLanguage);
+                LoadPrinterList();
+            }
+            catch { }
+        }
+
+        private void ChangeLanguage(string language)
+        {
+            CurrentLanguage = language;
+            foreach(ToolStripMenuItem menu in ToolStripMenuItem_Language.DropDownItems)
+            {
+                menu.Checked = menu.Text == CurrentLanguage;
+            }
+            ApplyLanguage();
         }
 
         private void LoadPrinterList()
         {
+            ComboBoxPrinterList.Items.Clear();
             Task.Run(() =>
             {
                 var printerList = System.Drawing.Printing.PrinterSettings.InstalledPrinters;
@@ -266,7 +309,7 @@ namespace MultiplePdfPrinter
             }
             if (e.KeyCode == Keys.Delete)
             {
-                foreach(ListViewItem item in ListViewMain.SelectedItems)
+                foreach (ListViewItem item in ListViewMain.SelectedItems)
                 {
                     ListViewMain.Items.Remove(item);
                     PathList.Remove(item.Tag as string);
@@ -276,7 +319,42 @@ namespace MultiplePdfPrinter
 
         private void FormMain_HelpButtonClicked(object sender, CancelEventArgs e)
         {
-            System.Diagnostics.Process.Start("https://github.com/yejinmo/MultiplePdfPrinter");
+            Process.Start("https://github.com/yejinmo/MultiplePdfPrinter");
+        }
+
+        private void ListViewMain_DoubleClick(object sender, EventArgs e)
+        {
+            if (ListViewMain.SelectedItems.Count > 0)
+            {
+                var row = ListViewMain.SelectedItems[0];
+                var path = row.Tag as string;
+                if (File.Exists(path))
+                {
+                    Process.Start(path);
+                }
+            }
+        }
+
+        private void ToolStripMenuItem_Clear_Click(object sender, EventArgs e)
+        {
+            ListViewMain.Items.Clear();
+            PathList.Clear();
+        }
+
+        private void ToolStripMenuItem_Refresh_Click(object sender, EventArgs e)
+        {
+            LoadPrinterList();
+        }
+
+        private void ToolStripMenuItem_TopMost_Click(object sender, EventArgs e)
+        {
+            ToolStripMenuItem_TopMost.Checked = !ToolStripMenuItem_TopMost.Checked;
+            TopMost = ToolStripMenuItem_TopMost.Checked;
+        }
+
+        private void ToolStripMenuItem_About_Click(object sender, EventArgs e)
+        {
+            Process.Start("https://github.com/yejinmo/MultiplePdfPrinter");
         }
     }
 }
